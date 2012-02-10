@@ -2,7 +2,7 @@ import json, time, urllib, urllib2
 
 def get_work(url):
     u = urllib2.urlopen('http://%s/work'%url)
-    return json.loads(u.read())['work']
+    return json.loads(u.read())
 
 def submit_work(url, id, output):
     data = urllib.urlencode({'id':id, 'output':output})
@@ -25,7 +25,7 @@ def do_work(url='localhost:9000'):
 
 def go(url='localhost:9000', delay=0.5):
     while True:
-        do_work()
+        do_work(url)
         time.sleep(delay)
 
         

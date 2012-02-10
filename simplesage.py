@@ -1,15 +1,14 @@
-
 import cgi
+import json
 import webapp2
 from google.appengine.ext import db
 
 
 
 navbar = """
-<a href="/">home</a>&nbsp;&nbsp;
-<a href="/database">database</a>&nbsp;&nbsp;
-<a href="/work">work</a>&nbsp;&nbsp;
-<a href="/submit_work">submit work</a>&nbsp;&nbsp;
+<a href="/">submit</a>&nbsp;&nbsp;&nbsp;
+<a href="/database">database</a>&nbsp;&nbsp;&nbsp;
+<a href="/submit_work">submit work</a>
 <br>
 <hr>
 """
@@ -33,9 +32,10 @@ class MainPage(webapp2.RequestHandler):
           <html>
             <body>
             %s
+            <br>
+            Enter a Sage expression:
               <form action="/input" method="post">
-                <div><textarea name="input" rows="6" cols="70"></textarea></div>
-                <div><input type="submit" value="Evaluate Sage Code"></div>
+                <div><input type="text" name="input" size="90"></div>
               </form>
             </body>
           </html>"""%navbar)
@@ -50,40 +50,44 @@ class Input(webapp2.RequestHandler):
 
         self.response.out.write("""
         <html><body>%s
-        Received request to compute '%s'
+        id = %s<br>
+        input = '%s'
         <br>
+        %s
         </body></html>
-        """%(navbar, input))
+        """%(navbar, id, input, db_table()))
+
+def db_table():
+    all_work = db.GqlQuery("SELECT * FROM WorkRequest ORDER BY date DESC")
+    s = '<table border=1>'
+    s += '<tr><th>Date</th><th width=100>id</th><th width=150>input</th><th>output</th></tr>\n'
+    for a in all_work:
+        if a.output is None:
+            code = 'bgcolor="yellow"'
+        else:
+            code = 'bgcolor="#eee"'
+        s += '<tr %s><td>'%code + '</td><td>'.join([
+            str(a.date.ctime()), str(a.id),
+            '<pre>'+str(a.input)+'</pre>',
+            '<pre>' + str(a.output) + '</pre>']) + '</td></tr>\n'
+    s += '</table>'
+    return s
+    
 
 class Database(webapp2.RequestHandler):
     def get(self):
-        all_work = db.GqlQuery("SELECT * FROM WorkRequest ORDER BY date DESC")
-        s = '<table border=1>'
-        s += '<tr><th>Date</th><th width=100>id</th><th width=150>input</th><th>output</th></tr>\n'
-        for a in all_work:
-            if a.output is None:
-                code = 'bgcolor="yellow"'
-            else:
-                code = 'bgcolor="white"'
-            s += '<tr %s><td>'%code + '</td><td>'.join([
-                str(a.date.ctime()), str(a.id), str(a.input), str(a.output)]) + '</td></tr>\n'
-        s += '</table>'
         self.response.out.write("""
         %s
         <h2>Database</h2>
         %s
-        """%(navbar, s))
+        """%(navbar, db_table()))
 
 class Work(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
-
         all_work = db.GqlQuery("SELECT * FROM WorkRequest")
-
-        s = '{"work":['
-        s += ',\n'.join('{"id":%s, "input":"%s"}'%(a.id, a.input) for a in all_work
-                        if a.output is not None)  # TODO: stupid way to filter -- should change query!!!!
-        s += ']}'
+        # TODO: should only query for things with output none!
+        s = json.dumps([{'id':a.id, 'input':a.input} for a in all_work if a.output is None])
         self.response.out.write(s)
 
 class SubmitWork(webapp2.RequestHandler):
@@ -93,8 +97,8 @@ class SubmitWork(webapp2.RequestHandler):
             <body>
             %s
               <form action="/receive_work" method="post">
-                <div><textarea name="id" rows="1" cols="10"></textarea></div>
-                <div><textarea name="output" rows="6" cols="70"></textarea></div>
+                <div>id:<br><textarea name="id" rows="1" cols="10"></textarea></div>
+                <div>output:<br><textarea name="output" rows="6" cols="70"></textarea></div>
                 <div><input type="submit" value="Submit Work"></div>
               </form>
             </body>
