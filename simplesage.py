@@ -1,17 +1,15 @@
-import cgi
-import json
-import webapp2
+from flask import Flask, request
+app = Flask(__name__)
+
 from google.appengine.ext import db
 
+import cgi
+import json
+import urllib2
 
-
-navbar = """
-<a href="/">submit</a>&nbsp;&nbsp;&nbsp;
-<a href="/database">database</a>&nbsp;&nbsp;&nbsp;
-<a href="/submit_work">submit work</a>
-<br>
-<hr>
-"""
+##############################
+# database
+##############################
 
 class WorkRequest(db.Model):
     id = db.IntegerProperty()
@@ -26,9 +24,22 @@ def next_id():
         return a.id + 1
     return 0
 
-class MainPage(webapp2.RequestHandler):
-    def get(self):
-        self.response.out.write("""
+##############################
+# handling URL's
+##############################
+
+navbar = """
+Flask Simple Sage Notebook Demo<br><br>
+<a href="/">submit</a>&nbsp;&nbsp;&nbsp;
+<a href="/database">database</a>&nbsp;&nbsp;&nbsp;
+<a href="/submit_work">submit work</a>
+<br>
+<hr>
+"""
+
+@app.route("/")
+def main_page():
+    return """
           <html>
             <body>
             %s
@@ -38,24 +49,24 @@ class MainPage(webapp2.RequestHandler):
                 <div><input type="text" name="input" size="90"></div>
               </form>
             </body>
-          </html>"""%navbar)
+          </html>"""%navbar
 
-class Input(webapp2.RequestHandler):
-    def post(self):
-        id = next_id()
-        input = cgi.escape(self.request.get('input'))
-        
-        wr = WorkRequest(parent=key, id=id, input=input)
-        wr.put()
+@app.route('/input', methods=['POST'])
+def input_page():
+    id = next_id()
+    input = cgi.escape(request.form['input'])
 
-        self.response.out.write("""
-        <html><body>%s
-        id = %s<br>
-        input = '%s'
-        <br>
-        %s
-        </body></html>
-        """%(navbar, id, input, db_table()))
+    wr = WorkRequest(parent=key, id=id, input=input)
+    wr.put()
+
+    return """
+    <html><body>%s
+    id = %s<br>
+    input = '%s'
+    <br>
+    %s
+    </body></html>
+    """%(navbar, id, input, db_table())
 
 def db_table():
     all_work = db.GqlQuery("SELECT * FROM WorkRequest ORDER BY date DESC")
@@ -72,27 +83,20 @@ def db_table():
             '<pre>' + str(a.output) + '</pre>']) + '</td></tr>\n'
     s += '</table>'
     return s
-    
 
-class Database(webapp2.RequestHandler):
-    def get(self):
-        self.response.out.write("""
-        %s
-        <h2>Database</h2>
-        %s
-        """%(navbar, db_table()))
+@app.route("/database")
+def database():
+    return """
+    <html><body>
+    %s
+    <h2>Database</h2>
+    %s
+    </body></html>
+    """%(navbar, db_table())
 
-class Work(webapp2.RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        all_work = db.GqlQuery("SELECT * FROM WorkRequest")
-        # TODO: should only query for things with output none!
-        s = json.dumps([{'id':a.id, 'input':a.input} for a in all_work if a.output is None])
-        self.response.out.write(s)
-
-class SubmitWork(webapp2.RequestHandler):
-    def get(self):
-        self.response.out.write("""
+@app.route("/submit_work")
+def submit_work():
+    return """
           <html>
             <body>
             %s
@@ -102,28 +106,27 @@ class SubmitWork(webapp2.RequestHandler):
                 <div><input type="submit" value="Submit Work"></div>
               </form>
             </body>
-          </html>"""%navbar)
-        
-class ReceiveWork(webapp2.RequestHandler):
-    def post(self):
-        output = cgi.escape(self.request.get('output'))
-        id = int(cgi.escape(self.request.get('id')))
-        self.response.out.write("""
+          </html>"""%navbar
+
+                
+@app.route("/work")
+def work():
+    all_work = db.GqlQuery("SELECT * FROM WorkRequest")
+    # TODO: should only query for things with output none!
+    return json.dumps([{'id':a.id, 'input':a.input} for a in all_work if a.output is None])
+    
+
+@app.route('/receive_work', methods=['POST'])
+def receive_work():
+    output = cgi.escape(request.form['output'])
+    id = int(cgi.escape(request.form['id']))
+
+    for a in db.GqlQuery("SELECT * FROM WorkRequest WHERE id=%s"%id):
+        a.output = output
+        a.put()
+
+    return """
         <html><body>%s        
         Result: id=%s, output=%s
         </body></html>
-        """%(navbar,id, output))
-
-        for a in db.GqlQuery("SELECT * FROM WorkRequest WHERE id=%s"%id):
-            a.output = output
-            a.put()
-        
-
-app = webapp2.WSGIApplication([('/', MainPage),
-                               ('/input', Input),
-                               ('/database', Database),
-                               ('/work', Work),
-                               ('/submit_work', SubmitWork),
-                               ('/receive_work', ReceiveWork)
-                               ],
-                              debug=True)
+        """%(navbar, id, output)
