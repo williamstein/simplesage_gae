@@ -65,10 +65,15 @@ def next_cell_id():
 ##############################
 
 @app.route("/")
+@login_required   
 def main_page():
-    user_id = random.randint(0, 1000)
-    token = channel.create_channel(str(user_id))
+    user_id = g.user.user_id()
+    token = channel.create_channel(user_id)
     return render_template('index.html', **locals())
+
+@app.route('/submit')
+def submit():
+    return render_template('main.html')
 
 @app.route('/input', methods=['POST'])
 @login_required   
