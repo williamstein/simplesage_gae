@@ -65,9 +65,12 @@ def next_cell_id():
 ##############################
 
 @app.route("/")
-@login_required   
 def main_page():
-    user_id = g.user.user_id()
+    # TODO: does not work with @login_required decorator for some reason?!
+    user = users.get_current_user()
+    if user is None:
+        return redirect(users.create_login_url(request.path))
+    user_id = user.user_id()
     token = channel.create_channel(user_id)
     return render_template('index.html', **locals())
 
