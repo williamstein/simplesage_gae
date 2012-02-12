@@ -161,14 +161,16 @@ def workers_update():
     from client import push_to_client
     
     push_to_client(cell_id, user_id, output)
-    
+
     for a in q:
+        #import logging; logging.info('id = %s, output = %s, a.output = %s'%(cell_id, output, a.output))
         if a.output is None:
             a.output = output
         else:
             a.output += output
         a.status = status
         a.put()
+    #import logging; logging.info('a.output = %s'%a.output)        
 
     return 'success'
 

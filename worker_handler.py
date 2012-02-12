@@ -7,7 +7,6 @@ from flask import request, jsonify
 import fake_channel as channel
 
 from simplesage import app, Workers
-import simplejson
 import random
 
 @app.route('/worker/login', methods=['POST'])

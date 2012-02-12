@@ -3,8 +3,7 @@ import json, time, urllib, urllib2, sys, logging, socket, os
 import gae_channel
 import multiprocessing
 from Queue import Empty
-
-from sage.all import preparse
+import sage.all
 
 DEBUG_LIST = [None,"local","cmd"]
 DEBUG = DEBUG_LIST[1]
@@ -37,7 +36,9 @@ class SageLocalTest(object):
     def long_poll_messages(self):
         a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
         while a:
-            print "received %s"%a
+            if DEBUG:
+                print "RECEIVED: %s"%a
+                print "RECEIVE TIME: %s"%(time.time())
             yield a
             a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
         
@@ -62,7 +63,7 @@ class SageMonitor(object):
         while True:
             if self.checking:
                 for userid, t in self.worker.checkup_times.items():
-                    print t, time.time()
+                    #print t, time.time()
                     curtime = time.time()
                     if curtime >= t:
                         self.worker.sessions[userid].query_status()
@@ -156,7 +157,7 @@ class SageGAEWorker(object):
             session = self.sessions[userid]
         else:
             session = self.fork_new_session(userid)
-        code = preparse(code)
+        code = prepare(code)
         session.execute(cellid, code)
 
     def fork_new_session(self, userid):
@@ -167,17 +168,81 @@ class SageGAEWorker(object):
     def post(self, userid, cellid, out, status):
         if DEBUG:
             print "POSTING: %s, %s, %s, %s"%(userid, cellid, out, status)
+            print "POST TIME: %s"%(time.time())
         if DEBUG != "cmd":
             url = self.base_url + "workers/update"
             data = urllib.urlencode({'user_id':userid, 'cell_id':cellid, 'output':out, 'status':status})
             urllib2.urlopen(url, data=data)
-        
+
+def prepare(code):
+    code = sage.all.preparse(code)
+    if not code:
+        return code
+    newline_loc = code.rfind("\n")
+    last_line = code[newline_loc+1:].strip()
+    while last_line[0] == '#':
+        code = code[:newline_loc]
+        newline_loc = code.rfind("\n")
+        last_line = code[newline_loc+1:].strip()
+    if code[newline_loc+1] != " ":
+        # the last line is an expression
+        code = code[:newline_loc+1] + "print(" + code[newline_loc+1:] + ")"
+    return code
+
+class OutputStatus(object):
+    def __init__(self, output, done):
+        self.output = output
+        self.done = done
+
+class SageProcess(multiprocessing.Process):
+    def __init__(self, delay = 0.02):
+        multiprocessing.Process.__init__(self)
+        self.output = os.tmpfile()
+        self.done = os.tmpfile()
+        self.input = multiprocessing.Queue()
+        self.delay = delay
+        self.globs = {}
+        for ky, val in sage.all.__dict__.iteritems():
+            self.globs[ky] = val
+
+    def execute(self, code):
+        print "Putting command"
+        self.input.put(code)
+
+    def output_status(self):
+        self.done.seek(0)
+        self.output.seek(0)
+        done = self.done.read()
+        output = self.output.read()
+        if done:
+            self.done.truncate(0)
+            self.output.truncate(0)
+        return OutputStatus(output, bool(done))
+
+    def run(self):
+        os.dup2(self.output.fileno(), sys.stdout.fileno())
+        while True:
+            try:
+                code = self.input.get_nowait()
+            except Empty:
+                time.sleep(self.delay)
+                continue
+            sys.stderr.write("Pre-exec\n")
+            sys.stderr.flush()
+            exec code in self.globs
+            sys.stderr.write("Post-exec\n")
+            sys.stderr.flush()
+            self.done.write("1")
+            self.done.flush()
+
 class SageSession(object):
     def __init__(self, worker, userid, delay, checkup_interval = 0.01):
         self.worker = worker
         self.userid = userid
-        from sagenb.interfaces.expect import WorksheetProcess_ExpectImplementation
-        self.expect = WorksheetProcess_ExpectImplementation()
+        #from sagenb.interfaces.expect import WorksheetProcess_ExpectImplementation
+        #self.expect = WorksheetProcess_ExpectImplementation()
+        self.expect = SageProcess()
+        self.expect.start()
         if DEBUG:
             print "Starting Sage"
         self.expect.execute("from sage.all import *\n")
@@ -204,22 +269,25 @@ class SageSession(object):
         if DEBUG:
             print "executing %s"%code
         self.exec_queue.append((cellid, code))
-        self.query_status() # starts execution if there's nothing in the exec_queue
+        self.query_status(new=True) # starts execution if there's nothing in the exec_queue
 
     def _execute(self):
         self.cur_cellid, code = self.exec_queue.pop(0)
+        if DEBUG:
+            print "EXECUTE TIME: %s"%(time.time())
         self.expect.execute(code)
         self.output_len = 0
         self.set_starting_intervals()
 
-    def query_status(self):
+    def query_status(self, new=False):
         status = self.expect.output_status()
         new_out = status.output[self.output_len:].strip()
         cur_cellid = self.cur_cellid
         running = self.running
-        print "running %s"%self.running
-        if status.done:
+        #print "running %s"%self.running
+        if new or status.done:
             if len(self.exec_queue) > 0:
+                print "Nonempty exec queue"
                 self._execute()
             else:
                 self.clear_intervals()
