@@ -8,6 +8,7 @@ from google.appengine.api import users
 from flask import render_template
 import channels
 import client
+import workerhandler
 
 import cgi
 import json
