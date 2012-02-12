@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Sage Command Line</title>
+    <link rel="stylesheet" href="/static/codemirror/lib/codemirror.css">
+    <script src="/static/codemirror/lib/codemirror.js"></script>
+    <script src="/static/codemirror/mode/python/python.js"></script>
+  </head>
+  <body>
+    <h1>Sage Command Line Demo</h1>
+
+<style type="text/css">
+      #output .CodeMirror {
+        border: 2px solid #aaa;
+      }
+      #output .CodeMirror-scroll {
+        height: 200px;
+        overflow-y: none;
+        overflow-x: auto;
+        width: 100%;
+      }
+
+      #input .CodeMirror {
+        border: 2px solid #33d;
+      }
+      #input .CodeMirror-scroll {
+        height: auto;
+        overflow-y: none;
+        overflow-x: auto;
+        width: 100%;
+      }
+</style>
+
+<div id="output">
+<textarea id="output2">
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+sage: for i in range(3):
+...       print a*(b*i)
+35                     
+40               
+45               
+
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+sage: a = 5
+sage: b = 7
+sage: factor(a^2 + b^3)
+2^4 * 23
+</textarea>
+</div>
+<hr>
+
+<div id="input">
+<textarea id="input2">
+for i in range(3):
+    print a*(b*i)
+</textarea>
+</div>
+
+
+
+    <script>
+      var output = CodeMirror.fromTextArea(document.getElementById("output2"), {
+        lineNumbers: true,
+        readOnly: true,
+      });
+      output.setCursor(9999999999);
+   </script>
+
+
+   <script>
+      var input = CodeMirror.fromTextArea(document.getElementById("input2"), {
+        lineNumbers: false,
+        indentUnit: 4,
+      });
+    </script>
+
+  </body>
+</html>
