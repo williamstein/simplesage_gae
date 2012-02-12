@@ -11,7 +11,8 @@ def get_work(url, id):
     return json.loads(u)
 
 def submit_work(url, cell_id, user_id, output):
-    data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id, 'output':output,
+    data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id,
+                             'output':output,
                              'status':'done'})
     urllib2.urlopen('%s/workers/update'%url, data=data)
 
@@ -49,7 +50,7 @@ def go(url='http://localhost:9000', delay=0.5, id='worker'):
             do_work(url, id)
         except Exception, msg:
             print "Error: %s"%msg
-            print "Waiting 5 secods"
+            print "Waiting 5 seconds"
             time.sleep(5)
         else:
             time.sleep(delay)
