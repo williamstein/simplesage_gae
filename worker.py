@@ -4,8 +4,8 @@ def get_work(url):
     u = urllib2.urlopen('%s/work'%url)
     return json.loads(u.read())
 
-def submit_work(url, id, output):
-    data = urllib.urlencode({'id':id, 'output':output})
+def submit_work(url, cell_id, user_id, output):
+    data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id, 'output':output})
     urllib2.urlopen('%s/receive_work'%url, data=data)
 
 def do_work(url='http://localhost:9000'):
@@ -19,9 +19,10 @@ def do_work(url='http://localhost:9000'):
             output = sage_eval(w['input'])
         except Exception, msg:
             output = "Error: '%s'"%msg
-        id = w['id']
-        print id, output
-        submit_work(url, id, output)
+        user_id = w['user_id']
+        cell_id = w['cell_id']
+        print user_id, cell_id, output
+        submit_work(url, cell_id, user_id, output)
 
 def go(url='http://localhost:9000', delay=0.5):
     while True:

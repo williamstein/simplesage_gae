@@ -1,0 +1,21 @@
+[x] users (openid)
+
+[ ] change database schema
+
+  cells:
+      - user_id   -- string
+      - cell_id   -- integer
+      - input     -- text
+      - output    -- text
+      - status    -- 'done' or 'running'
+
+  workers:
+      - worker_id -- string 
+
+  sessions:
+      - worker_id -- string
+      - user_id   -- string (which user is being served by this session)
+      - status    -- string (latest status of this session)
+
+  
+

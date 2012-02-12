@@ -10,25 +10,9 @@ import cgi
 import json
 import urllib2
 
-##############################
-# database
-##############################
-
-class WorkRequest(db.Model):
-    id = db.IntegerProperty()
-    input = db.StringProperty(multiline=True)
-    output = db.StringProperty(multiline=True)
-    date = db.DateTimeProperty(auto_now_add=True)
-
-key = db.Key.from_path('work', 'request')
-
-def next_id():
-    for a in db.GqlQuery("SELECT * from WorkRequest ORDER by id DESC"):
-        return a.id + 1
-    return 0
 
 ##############################
-# handling URL's
+# decorators
 ##############################
 
 # makes it so "g.user" is defined and not None
@@ -44,47 +28,103 @@ def login_required(f):
         return f(*args, **kwds)
     return wrapper
 
+##############################
+# database
+##############################
+
+class Cells(db.Model):
+    user_id = db.StringProperty()
+    cell_id = db.IntegerProperty()
+    input = db.StringProperty(multiline=True)
+    output = db.StringProperty(multiline=True)
+    status = db.StringProperty()   # 'run', 'done'
+
+class Workers(db.Model):
+    worker_id = db.StringProperty()
+
+class Sessions(db.Model):
+    worker_id = db.StringProperty()
+    user_id = db.StringProperty()
+    status = db.StringProperty()
+
+#TODO: what's this key -- makes no sense to me?
+key = db.Key.from_path('work', 'request') 
+
+
+@login_required   
+def next_cell_id():
+    q = Cells.all()
+    q.filter("user_id =", g.user.user_id())
+    q.order("-cell_id")
+    for a in q:
+        return a.cell_id + 1
+    return 0
+
+##############################
+# handling URL's
+##############################
+
 @app.route("/")
 def main_page():
     return render_template('main.html')
 
-@app.route('/input', methods=['POST'])  # so g.user is defined in function
+@app.route('/input', methods=['POST'])
 @login_required   
 def input_page():
-    id = next_id()
-    input = cgi.escape(request.form['input'])
+    cell = Cells(user_id = g.user.user_id(),
+                 cell_id = next_cell_id(),
+                 input   = cgi.escape(request.form['input']))
+    cell.put()
+    return redirect('/db/cells')
 
-    all_work = get_all_work() 
-    wr = WorkRequest(parent=key, id=id, input=input)
-    wr.put()
+@login_required
+def get_all_cells():
+    q = Cells.all()
+    q.filter("user_id =", g.user.user_id())
+    q.order('-cell_id')
+    return q
 
-    return render_template('input.html', **locals()) 
+@app.route('/db/cells')
+def db_cells():
+    all_cells = get_all_cells()
+    return render_template('db_cells.html', **locals()) 
 
-def get_all_work():
-    return db.GqlQuery("SELECT * FROM WorkRequest ORDER BY date DESC")
+@app.route('/db/workers')
+def db_workers():
+    all_workers = Workers.all()
+    return render_template('db_workers.html', **locals()) 
 
-@app.route("/database")
-def database():
-    return render_template('database.html', all_work = get_all_work())
-
-@app.route("/submit_work")
-def submit_work():
-    return render_template('submit_work.html')
+@app.route('/db/sessions')
+def db_sessions():
+    all_sessions = Sessions.all()
+    return render_template('db_sessions.html', **locals()) 
 
 @app.route("/work")
 def work():
-    all_work = db.GqlQuery("SELECT * FROM WorkRequest")
-    # TODO: should only query for things with output none!
-    return json.dumps([{'id':a.id, 'input':a.input} for a in all_work if a.output is None])
+    q = Cells.all()
+    q.filter('status !=', 'done')
+    w = [{'cell_id':a.cell_id, 'user_id':a.user_id, 'input':a.input} for a in q]
+    return json.dumps(w)
 
+@app.route("/submit_work")
+def submit_work():
+    user = users.get_current_user()
+    if user is not None:
+        user_id = user.user_id()
+    return render_template('submit_work.html', **locals())
 
 @app.route('/receive_work', methods=['POST'])
 def receive_work():
     output = cgi.escape(request.form['output'])
-    id = int(cgi.escape(request.form['id']))
+    cell_id = int(cgi.escape(request.form['cell_id']))
+    user_id = cgi.escape(request.form['user_id'])
 
-    for a in db.GqlQuery("SELECT * FROM WorkRequest WHERE id=%s"%id):
+    q = Cells.all()
+    q.filter('cell_id =', cell_id)
+    q.filter('user_id =', user_id)
+    for a in q:
         a.output = output
+        a.status = 'done'
         a.put()
 
-    return render_template('receive_work.html', **locals())
+    return 'success'

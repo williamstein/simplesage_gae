@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<table border=1>
+<tr><th>worker_id</th><th>user_id</th><th>status</th></tr>
+{% for a in all_sessions %}
+<tr >
+    <td>{{ a.worker_id }} </td>
+    <td> {{ a.user_id }} </td>
+    <td>{{ a.status }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}
