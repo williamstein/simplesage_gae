@@ -16,14 +16,14 @@ def submit_work(url, cell_id, user_id, output, status):
                              'status':status})
     urllib2.urlopen('%s/workers/update'%url, data=data)
 
-if 0:
+if 1:
     from sagenb.interfaces.reference import execute_code
     G = {}
     execute_code('from sage.all import *', G)
     def evaluate(input):
         from sage.all import preparse
         try:
-            return execute_code(preparse(input), G)[0]
+            return [execute_code(preparse(input), G)[0]]
         except Exception, msg:
             return "Error: '%s'"%msg
 else:
