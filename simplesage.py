@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, url_for
+from flask import Flask, request, redirect, url_for, g
 app = Flask(__name__)
 
 from google.appengine.ext import db
@@ -31,19 +31,28 @@ def next_id():
 # handling URL's
 ##############################
 
+# makes it so "g.user" is defined and not None
+# (put this after @app.route)
+def login_required(f):
+    def wrapper(*args, **kwds):
+        if not hasattr(g, 'user') or not g.user:
+            # Get the current user, or redirect them to a login page
+            user = users.get_current_user()
+            if user is None:
+                return redirect(users.create_login_url(request.path))
+            g.user = user
+        return f(*args, **kwds)
+    return wrapper
+
 @app.route("/")
 def main_page():
-    
     return render_template('main.html')
 
-@app.route('/input', methods=['POST'])
+@app.route('/input', methods=['POST'])  # so g.user is defined in function
+@login_required   
 def input_page():
     id = next_id()
     input = cgi.escape(request.form['input'])
-
-    # Get the current user, or redirect them to a login page:
-    user = users.get_current_user()
-    if user is None: return redirect(users.create_login_url(request.path))
 
     all_work = get_all_work() 
     wr = WorkRequest(parent=key, id=id, input=input)
