@@ -30,7 +30,7 @@ class SageLocalTest(object):
         else:
             self.id = "new-worker"
         data = urllib.urlencode({'id':self.id})
-        urllib2.urlopen('http://localhost:9000/worker/login'%url, data=data)
+        urllib2.urlopen('http://localhost:9000/worker/login', data=data)
     class logger(object):
         def warn(self, s):
             print s
@@ -134,22 +134,16 @@ class SageGAEWorker(object):
     def listen(self):
         self.monitor = SageMonitor(self)
         for msg in self.monitor:
-            print type(msg), msg
             msg = json.loads(msg)
-            cmd, userid, data = msg['cmd'], msg['userid'], msg['data']
+            cmd = msg['cmd']
             print "Handling %s command"%(cmd)
-            self.handle_command(cmd, userid, data)
+            if cmd == 'exec':
+                self.exec_code(userid = msg['user_id'], cellid = msg['cell_id'], code = msg['input'])
+            else:
+                assert False
 
-    def handle_command(self, cmd, userid, data):
-        if cmd == 'exec':
-            self.exec_code(userid, data)
-        elif cmd == 'kill':
-            assert False
-            self.kill_session(userid)
-
-    def exec_code(self, userid, data):
+    def exec_code(self, userid, cellid, code):
         session = self.sessions.get(userid, self.fork_new_session(userid))
-        cellid, code = data['cellid'], data['code']
         code = preparse(code)
         session.execute(cellid, code)
 

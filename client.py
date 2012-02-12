@@ -61,7 +61,7 @@ def send_work(user_id, cell_id, input):
     worker_id = get_worker(user_id)
 
     # 2. Send message
-    msg = json.dumps( {'cell_id':cell_id, 'user_id':user_id, 'input':input} )
+    msg = json.dumps( {'cmd':'exec','cell_id':cell_id, 'user_id':user_id, 'input':input} )
 
     logging.info('sending message to %s: %s' % (worker_id, msg))
     
