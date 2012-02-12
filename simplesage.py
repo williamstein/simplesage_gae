@@ -2,13 +2,17 @@ from flask import Flask, request, redirect, url_for, g
 app = Flask(__name__)
 
 from google.appengine.ext import db
+from google.appengine.api import channel
 from google.appengine.api import users
 
 from flask import render_template
+import channels
+import client
 
 import cgi
 import json
 import urllib2
+import random
 
 
 ##############################
@@ -62,7 +66,9 @@ def next_cell_id():
 
 @app.route("/")
 def main_page():
-    return render_template('main.html')
+    user_id = random.randint(0, 1000)
+    token = channel.create_channel(str(user_id))
+    return render_template('index.html', **locals())
 
 @app.route('/input', methods=['POST'])
 @login_required   
