@@ -11,7 +11,7 @@ import cgi
 import json
 import urllib2
 import random
-
+from functools import wraps
 
 ##############################
 # decorators
@@ -20,6 +20,7 @@ import random
 # makes it so "g.user" is defined and not None
 # (put this after @app.route)
 def login_required(f):
+    @wraps(f)
     def wrapper(*args, **kwds):
         if not hasattr(g, 'user') or not g.user:
             # Get the current user, or redirect them to a login page
@@ -43,6 +44,7 @@ class Cells(db.Model):
 
 class Workers(db.Model):
     worker_id = db.StringProperty()
+    status = db.StringProperty()
 
 class Sessions(db.Model):
     worker_id = db.StringProperty()
@@ -63,12 +65,9 @@ def next_cell_id():
 ##############################
 
 @app.route("/")
+@login_required
 def main_page():
-    # TODO: does not work with @login_required decorator for some reason?!
-    user = users.get_current_user()
-    if user is None:
-        return redirect(users.create_login_url(request.path))
-    user_id = user.user_id()
+    user_id = g.user.user_id()
     token = channel.create_channel(user_id)
     q = Cells.all()
     q.filter("user_id =", user_id)
@@ -105,15 +104,33 @@ def db_cells():
     all_cells = get_all_cells()
     return render_template('db_cells.html', **locals()) 
 
+@app.route('/db/cells/drop')
+def drop_cells():
+    for a in Cells.all():
+        a.delete()
+    return redirect(url_for('db_cells'))
+
 @app.route('/db/workers')
 def db_workers():
     all_workers = Workers.all()
     return render_template('db_workers.html', **locals()) 
 
+@app.route('/db/workers/drop')
+def drop_workers():
+    for a in Workers.all():
+        a.delete()
+    return redirect('db/workers')
+
 @app.route('/db/sessions')
 def db_sessions():
     all_sessions = Sessions.all()
     return render_template('db_sessions.html', **locals()) 
+
+@app.route('/db/sessions/drop')
+def drop_sessions():
+    for a in Sessions.all():
+        a.delete()
+    return redirect('db/sessions')
 
 @app.route("/workers/work")
 def work():
@@ -159,3 +176,4 @@ def workers_update():
 import channels
 import client
 import workerhandler
+import fake_channel
