@@ -38,8 +38,8 @@ def login_required(f):
 class Cells(db.Model):
     user_id = db.StringProperty()
     cell_id = db.IntegerProperty()
-    input = db.StringProperty(multiline=True)
-    output = db.StringProperty(multiline=True)
+    input = db.TextProperty()
+    output = db.TextProperty()
     status = db.StringProperty()   # 'run', 'done'
 
 class Workers(db.Model):
@@ -71,6 +71,7 @@ def main_page():
     token = channel.create_channel(user_id)
     q = Cells.all()
     q.filter("user_id =", user_id)
+    q.order("cell_id")
     return render_template('index.html', **locals())
 
 @app.route('/submit')
