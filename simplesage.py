@@ -77,6 +77,12 @@ def main_page():
 def submit():
     return render_template('main.html')
 
+@app.route("/get_channel_token", methods=['GET', 'POST'])
+@login_required
+def get_channel_token():
+    token = channel.create_channel(g.user.user_id())
+    return token
+
 @app.route('/input', methods=['POST'])
 @login_required
 def input_page():
@@ -118,7 +124,7 @@ def drop_workers():
 @app.route('/db/sessions')
 def db_sessions():
     all_sessions = Sessions.all()
-    return render_template('db_sessions.html', **locals()) 
+    return render_template('db_sessions.html', **locals())
 
 @app.route('/db/sessions/drop')
 def drop_sessions():
