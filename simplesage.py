@@ -78,6 +78,12 @@ def main_page():
 def submit():
     return render_template('main.html')
 
+@app.route("/get_channel_token", methods=['GET', 'POST'])
+@login_required
+def get_channel_token():
+    token = channel.create_channel(g.user.user_id())
+    return token
+
 @app.route('/input', methods=['POST'])
 @login_required
 def input_page():
