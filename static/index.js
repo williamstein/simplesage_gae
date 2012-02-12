@@ -5,26 +5,14 @@ debug_response = function(json) {
 }
 
 sendAjaxJsonMessage = function(path, opt_object, opt_callback, opt_this) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', path, true);
-  xhr.setRequestHeader('Content-type','application/x-www-form-urlencoded');
-  if (opt_callback !== undefined) {
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState == 4) {
-        if (xhr.status == 200) {
-          var message = JSON.parse(xhr.responseText);
-          opt_callback.call(opt_this, message);
-        }
+  $.ajax({
+      url: path,
+      type: 'POST',
+      data: opt_object,
+      success: function(data) {
+        opt_callback.call(opt_this, data);
       }
-    }
-  }
-  if (opt_object !== undefined) {
-    var jsonMessage = JSON.stringify(opt_object);
-    var params = 'json=' + escape(jsonMessage);
-    xhr.send(params);
-  } else {
-    xhr.send();
-  }
+  });
 };
 
 Controller = function() {};
@@ -34,7 +22,7 @@ Controller.prototype.send_input = function() {
   this.input_codemirror.setValue('');
   var message = {};
   message.input = this.input;
-  sendAjaxJsonMessage('/input_new', message, this.ack, this); 
+  sendAjaxJsonMessage('/input_new', message, this.ack, this);
   console.log('sending', message);
 };
 

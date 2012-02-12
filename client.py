@@ -6,8 +6,8 @@ import simplejson
 
 @app.route('/input_new', methods=['POST'])
 def input_new():
-    json_load = simplejson.loads(request.form['json'])
-    logging.info('input received', json_load)
+    input = request.form['input']
+    logging.info('input received %s' % input)
     return jsonify({'status': 'ok'})
 
 @app.route('/fake_worker', methods=['GET'])
