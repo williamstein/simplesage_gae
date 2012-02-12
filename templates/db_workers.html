@@ -2,11 +2,16 @@
 
 {% block content %}
 
+<h2>Workers</h2>
+
+<a href="/db/workers/drop">DELETE ALL</a>
+<br>
+
 <table border=1>
-<tr><th>worker_id</th></tr>
+<tr><th>worker_id</th><th>status</th></tr>
 {% for a in all_workers %}
 <tr>
-    <td>{{ a.worker_id }} </td>
+    <td>{{ a.worker_id }}</td>    <td>{{ a.status }}</td>
 </tr>
 {% endfor %}
 </table>
