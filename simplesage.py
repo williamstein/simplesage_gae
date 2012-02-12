@@ -6,9 +6,6 @@ from google.appengine.api import channel
 from google.appengine.api import users
 
 from flask import render_template
-import channels
-import client
-import workerhandler
 
 import cgi
 import json
@@ -143,3 +140,9 @@ def workers_update():
         a.put()
 
     return 'success'
+
+#############
+
+import channels
+import client
+import workerhandler

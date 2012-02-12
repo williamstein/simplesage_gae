@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json, time, urllib, urllib2, sys, logging, socket
 import gae_channel
 import multiprocessing
@@ -5,12 +6,28 @@ from Queue import Empty
 
 import sage.all_cmdline
 
+
+
+class SageCmdTest(object):
+    def __init__(self):
+        self.message_file = sys.argv[1]
+    class logger(object):
+        def warn(self, s):
+            print s
+    def long_poll_messages(self):
+        with open(self.message_file) as F:
+            for a in F.read().split("$$"):
+                yield a
+
 class SageMonitor(object):
-    def __init__(self, worker):
+    def __init__(self, worker, cmd_test):
         self.worker = worker
-        self.chan = gae_channel.Client(worker.token)
-        self.chan.logger.setLevel(logging.DEBUG)
-        print "Listening on channel %s with token %s"%(self.name, self.token)
+        if cmd_test:
+            self.chan = SageCmdTest()
+        else:
+            self.chan = gae_channel.Client(worker.token)
+            self.chan.logger.setLevel(logging.DEBUG)
+        print "Listening with token %s"%(worker.token)
         self.checking = False
         self._reconnect_time = time.time()
         self._need_reconnect = False
@@ -73,20 +90,18 @@ class SageMonitor(object):
 
 class SageGAEWorker(object):
     def __init__(self, base_url = "http://simplesage_roed.appspot.com/", worker_subdir = "worker/", \
-                       name=None, delay = 0.02, base_checkup_interval = 0.01):
-        if name is None:
-            self.name = gae_channel.random_string(10)
-        else:
-            self.name = name
+                       delay = 0.02, base_checkup_interval = 0.01, cmd_test=False):
         self.base_url = base_url
         self.worker_subdir = worker_subdir
         self.delay = delay
         self.base_checkup_interval = base_checkup_interval
         self.sessions = {}
         self.checkup_times = {}
-        self.fetch_token()
-        self.start_sage()
-        self.listen()
+        if cmd_test:
+            self.token = 0
+        else:
+            self.fetch_token()
+        self.listen(cmd_test)
         
     def fetch_token(self):
         url = self.base_url + "worker/login"
@@ -94,7 +109,7 @@ class SageGAEWorker(object):
         self.token = req.read()
 
     def listen(self):
-        self.monitor = SageMonitor(self)
+        self.monitor = SageMonitor(self, cmd_test)
         for msg in self.monitor:
             msg = json.loads(msg)
             cmd, userid, data = msg.cmd, msg.userid, msg.data
@@ -190,4 +205,4 @@ class SageProcess(multiprocessing.Process):
             self.done_queue.put((cellid,self.output_file.tell()))
         
 if __name__ ==  '__main__':
-    SageWorker()
+    SageGAEWorker(cmd_test=(len(sys.argv) > 1))
