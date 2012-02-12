@@ -1,0 +1,10 @@
+<table border=1>
+<tr><th>Date</th><th width=100>id</th><th width=150>input</th><th>output</th></tr>
+{% for a in all_work %}
+<tr bgcolor="{% if a.output is defined %}yellow{% else %}#eee{% endif %}">
+    <td>{{ a.date.ctime() }} </td>
+    <td> {{ a.id }} </td>
+    <td><pre>{{ a.input }}</pre></td>
+    <td><pre> {{ a.output }}  </pre></td></tr>
+{% endfor %}
+</table>
