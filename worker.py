@@ -78,6 +78,6 @@ if __name__ ==  '__main__':
     if len(sys.argv) > 2:
         go(sys.argv[1], id=sys.argv[2])
     elif len(sys.argv) > 1:
-        go(sys.argv[1], 'worker')
+        go(sys.argv[1], id='worker')
     else:
         go()

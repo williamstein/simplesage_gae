@@ -19,7 +19,7 @@ def input_new():
                  input   = input)
     cell.put()
     try:
-        send_work(user_id, cell.cell_id, cell.input)
+        send_work(user_id, cell.cell_id, input)
         return jsonify({'status': 'ok'})
     except NoAvailableWorkersError:
         return jsonify({'status': 'no workers available'})

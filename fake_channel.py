@@ -36,6 +36,8 @@ from simplesage import app
 def fake_channel(id):
     q = Channels.all()
     c = q.filter("id =", id).get()
+    if not c:
+        return ''
     if len(c.msg) > 0:
         msg = c.msg.pop()
         c.put()
