@@ -7,14 +7,14 @@ import json
 @app.route('/input_new', methods=['POST'])
 @login_required
 def input_new():
-    json_load = json.loads(request.form['json'])
-    
+    input = request.form['input']
+    logging.info('input received %s' % input)
+
     cell = Cells(user_id = g.user.user_id(),
                  cell_id = next_cell_id(),
-                 input   = json_load['input'])
+                 input   = input)
     cell.put()
     
-    logging.info('input received: %s'%json_load)
     return jsonify({'status': 'ok'})
 
 @app.route('/fake_worker', methods=['GET'])
@@ -29,4 +29,4 @@ def push_to_client(userid, newoutput):
                              'newoutput': newoutput,
                              'status': 'more'})
     channel.send_message(userid, json)
-    return 'ok' 
+    return 'ok'
