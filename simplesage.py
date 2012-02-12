@@ -175,5 +175,5 @@ def workers_update():
 
 import channels
 import client
-import workerhandler
+import worker_handler
 import fake_channel
