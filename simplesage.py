@@ -11,7 +11,7 @@ import cgi
 import json
 import urllib2
 import random
-
+from functools import wraps
 
 ##############################
 # decorators
@@ -20,6 +20,7 @@ import random
 # makes it so "g.user" is defined and not None
 # (put this after @app.route)
 def login_required(f):
+    @wraps(f)
     def wrapper(*args, **kwds):
         if not hasattr(g, 'user') or not g.user:
             # Get the current user, or redirect them to a login page
@@ -63,6 +64,7 @@ def next_cell_id():
 ##############################
 
 @app.route("/")
+@login_required
 def main_page():
     # TODO: does not work with @login_required decorator for some reason?!
     user = users.get_current_user()
