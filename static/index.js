@@ -30,6 +30,7 @@ Controller.prototype.ack = function(message) {
   if (message.status == 'ok') {
     this.extend_output(this.input);
   } else {
+    alert(message.status);
     this.undo();
   }
 };
@@ -51,6 +52,40 @@ Controller.prototype.undo = function() {
   this.input = '';
 };
 
+establishChannel = function(token) {
+  if (token === undefined) {
+    $.ajax({
+        url: '/get_channel_token',
+        type: 'POST',
+        success: function(token) {
+          establishChannel(token);
+        }
+    });
+    return;
+  }
+  var onMessage = function(messageObject) {
+    var message = JSON.parse(messageObject.data);
+    controller.message_received(message);
+  }
+  var onOpened = function() {
+    console.log('channel established');
+  }
+  var onError = function(error) {
+    console.log('channel error', error);
+    establishChannel();
+  }
+  var onClose = function() {
+    console.log('channel closed');
+    establishChannel();
+  }
+  var channel = new goog.appengine.Channel(token);
+  var socket = channel.open();
+  socket.onopen = onOpened;
+  socket.onmessage = onMessage;
+  socket.onerror = onError;
+  socket.onclose = onClose;
+}
+
 onload = function() {  
   controller = new Controller();
 
@@ -65,7 +100,6 @@ onload = function() {
     indentUnit: 4,
     onKeyEvent:
       function(editor, e) {
-          console.log(e);
           if (e.keyCode === 13 && e.type === 'keydown' && e.shiftKey) {
               controller.send_input();
               e.stop();
@@ -80,29 +114,7 @@ onload = function() {
   controller.input_codemirror = input;
   controller.output_codemirror = output;
 
-  var onMessage = function(messageObject) {
-    var message = JSON.parse(messageObject.data);
-    controller.message_received(message);
-  }
-
-  var onOpened = function() {
-    console.log('channel established');
-  }
-
-  var onError = function(error) {
-    console.log('channel error', error);
-  }
-
-  var onClose = function() {
-    console.log('channel closed');
-  }
-
-  var channel = new goog.appengine.Channel(token);
-  var socket = channel.open();
-  socket.onopen = onOpened;
-  socket.onmessage = onMessage;
-  socket.onerror = onError;
-  socket.onclose = onClose;
+  establishChannel(token);
 }
 
 document.addEventListener('onload', onload);
