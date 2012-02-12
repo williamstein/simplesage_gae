@@ -131,6 +131,11 @@ def workers_update():
     q = Cells.all()
     q.filter('cell_id =', cell_id)
     q.filter('user_id =', user_id)
+    
+    from client import push_to_client
+    
+    push_to_client(user_id, output)
+    
     for a in q:
         if a.output is None:
             a.output = output

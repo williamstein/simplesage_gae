@@ -23,10 +23,10 @@ def fake_worker():
     newoutput = request.args.get('newoutput')
     return push_to_client(userid, newoutput)
 
-def push_to_client(userid, newoutput):
-    json = json.dumps({'cellid': 0,
-                             'userid': userid,
-                             'newoutput': newoutput,
-                             'status': 'more'})
-    channel.send_message(userid, json)
+def push_to_client(user_id, new_output):
+    msg = json.dumps({'cellid': 0,
+                      'userid': user_id,
+                      'newoutput': new_output,
+                      'status': 'more'})
+    channel.send_message(user_id, msg)
     return 'ok'
