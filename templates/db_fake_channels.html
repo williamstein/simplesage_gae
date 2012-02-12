@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>Fake Channel Message Queue</h2>
+
+<a href="/db/fake_channels/drop">DELETE ALL</a>
+<br>
+<table border=1>
+<tr><th>id</th><th>msg</th></tr>
+{% for a in channels %}
+<tr>
+    <td>{{ a.id }} </td>
+    <td> {{ a.msg }} </td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

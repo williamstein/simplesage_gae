@@ -2,6 +2,12 @@
 
 {% block content %}
 
+<h2>Cells</h2>
+
+<a href="/db/cells/drop">DELETE ALL</a>
+<br>
+
+
 <table border=1>
 <tr><th>user_id</th><th>cell_id</th><th>status</th><th>input</th><th>output</th></tr>
 {% for a in all_cells %}
