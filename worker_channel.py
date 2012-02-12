@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import json, time, urllib, urllib2, sys, logging, socket
+import json, time, urllib, urllib2, sys, logging, socket, os
 import gae_channel
 import multiprocessing
 from Queue import Empty
 
-import sage.all_cmdline
+#import sage.all_cmdline
 
-
+DEBUG = True
 
 class SageCmdTest(object):
     def __init__(self):
@@ -17,12 +17,13 @@ class SageCmdTest(object):
     def long_poll_messages(self):
         with open(self.message_file) as F:
             for a in F.read().split("$$"):
-                yield a
+                if len(a) > 0:
+                    yield a
 
 class SageMonitor(object):
-    def __init__(self, worker, cmd_test):
+    def __init__(self, worker):
         self.worker = worker
-        if cmd_test:
+        if DEBUG:
             self.chan = SageCmdTest()
         else:
             self.chan = gae_channel.Client(worker.token)
@@ -33,6 +34,9 @@ class SageMonitor(object):
         self._need_reconnect = False
         self._backoff = 1
         self.lpm = self.chan.long_poll_messages()
+
+    def __iter__(self):
+        return self
 
     def next(self):
         if self.checking:
@@ -90,18 +94,18 @@ class SageMonitor(object):
 
 class SageGAEWorker(object):
     def __init__(self, base_url = "http://simplesage_roed.appspot.com/", worker_subdir = "worker/", \
-                       delay = 0.02, base_checkup_interval = 0.01, cmd_test=False):
+                       delay = 0.02, base_checkup_interval = 0.01):
         self.base_url = base_url
         self.worker_subdir = worker_subdir
         self.delay = delay
         self.base_checkup_interval = base_checkup_interval
         self.sessions = {}
         self.checkup_times = {}
-        if cmd_test:
+        if DEBUG:
             self.token = 0
         else:
             self.fetch_token()
-        self.listen(cmd_test)
+        self.listen()
         
     def fetch_token(self):
         url = self.base_url + "worker/login"
@@ -109,10 +113,11 @@ class SageGAEWorker(object):
         self.token = req.read()
 
     def listen(self):
-        self.monitor = SageMonitor(self, cmd_test)
+        self.monitor = SageMonitor(self)
         for msg in self.monitor:
+            print type(msg), msg
             msg = json.loads(msg)
-            cmd, userid, data = msg.cmd, msg.userid, msg.data
+            cmd, userid, data = msg['cmd'], msg['userid'], msg['data']
             #sys.stderr.write("Handling %s command"%(cmd))
             #sys.stderr.flush()
             print "Handling %s command"%(cmd)
@@ -153,13 +158,16 @@ class SageGAEWorker(object):
             assert False
             self.kill_session(userid)
 
-    def exec_code(userid, data):
+    def exec_code(self, userid, data):
+        print data
         session = self.sessions.get(userid, self.fork_new_session(userid))
         session.input.put(data)
         session.active_commands += 1
         self.checkup_times[userid] = time.time() + self.base_checkup_interval
 
-    def fork_new_session(userid):
+    def fork_new_session(self, userid):
+        print "FORKING"
+        sys.stdout.flush()
         new_session = SageSession(self.delay, self.base_checkup_interval)
         self.sessions[userid] = new_session
         new_session.process.start()
@@ -174,13 +182,17 @@ class SageGAEWorker(object):
 class SageSession(object):
     def __init__(self, delay, base_checkup_interval = 0.01):
         self.output = os.tmpfile()
+        print "opening input"
+        sys.stdout.flush()
         self.input = multiprocessing.Queue()
+        print "opening done"
+        sys.stdout.flush()
         self.done = multiprocessing.Queue()
-        self.process = SageProcess(input_queue, done_queue, output_file, delay)
+        self.process = SageProcess(self.input, self.done, self.output, delay)
         self.last_tell = 0
         self.active_commands = 0
-        self.base_checkup_interval = checkup_interval
-        self.checkup_interval = checkup_interval
+        self.base_checkup_interval = base_checkup_interval
+        self.checkup_interval = base_checkup_interval
 
 class SageProcess(multiprocessing.Process):
     def __init__(self, input_queue, done_queue, output_file, delay):
@@ -190,19 +202,25 @@ class SageProcess(multiprocessing.Process):
         self.output_file = output_file
         self.delay = delay
         self.globs = {}
-        for ky, val in sage.all.__dict__.iteritems:
-            self.globs[ky] = val
+        #for ky, val in sage.all.__dict__.iteritems():
+        #    self.globs[ky] = val
         os.dup2(output_file.fileno(), sys.stdout.fileno())
 
     def run(self):
         while True:
             try:
-                cellid, code = self.input_queue.get_nowait()
+                data = self.input_queue.get_nowait()
+                cellid, code = data['cellid'], data['code']
             except Empty:
                 time.sleep(self.delay)
                 continue
-            exec code in self.globs
+            sys.stderr.write("hello " + code)
+            sys.stderr.flush()
+            exec code in {}
+            print "bbye"
             self.done_queue.put((cellid,self.output_file.tell()))
         
 if __name__ ==  '__main__':
-    SageGAEWorker(cmd_test=(len(sys.argv) > 1))
+    SageGAEWorker()
+
+# preparse
