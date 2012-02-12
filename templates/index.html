@@ -37,58 +37,14 @@
 
 <div id="output">
 <textarea id="output2">
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-sage: for i in range(3):
-...       print a*(b*i)
-35                     
-40               
-45               
-
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-sage: a = 5
-sage: b = 7
-sage: factor(a^2 + b^3)
-2^4 * 23
-</textarea>
+{% for cell in q %}{{ cell.input }}
+{{ cell.output }}
+{% endfor %}</textarea>
 </div>
 <hr>
 
 <div id="input">
-<textarea id="input2">
-for i in range(3):
-    print a*(b*i)
-</textarea>
+<textarea id="input2">2 + 2</textarea>
 </div>
 <script>
 var token = '{{ token }}';

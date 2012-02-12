@@ -50,7 +50,7 @@ class Sessions(db.Model):
     user_id = db.StringProperty()
     status = db.StringProperty()
 
-@login_required   
+@login_required
 def next_cell_id():
     q = Cells.all()
     q.filter("user_id =", g.user.user_id())
@@ -71,6 +71,8 @@ def main_page():
         return redirect(users.create_login_url(request.path))
     user_id = user.user_id()
     token = channel.create_channel(user_id)
+    q = Cells.all()
+    q.filter("user_id =", user_id)
     return render_template('index.html', **locals())
 
 @app.route('/submit')
@@ -78,7 +80,7 @@ def submit():
     return render_template('main.html')
 
 @app.route('/input', methods=['POST'])
-@login_required   
+@login_required
 def input_page():
     cell = Cells(user_id = g.user.user_id(),
                  cell_id = next_cell_id(),
@@ -153,7 +155,7 @@ def workers_update():
     
     from client import push_to_client
     
-    push_to_client(user_id, output)
+    push_to_client(cell_id, user_id, output)
     
     for a in q:
         if a.output is None:

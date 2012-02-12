@@ -65,11 +65,14 @@ onload = function() {
     indentUnit: 4,
     onKeyEvent:
       function(editor, e) {
+          console.log(e);
           if (e.keyCode === 13 && e.type === 'keydown' && e.shiftKey) {
               controller.send_input();
+              e.stop();
               return true;
           }
           if (e.keyCode === 13 && e.type === 'keyup' && e.shiftKey) {
+              e.stop();
               return true;
           }
       }
