@@ -67,11 +67,7 @@ def next_cell_id():
 @app.route("/")
 @login_required
 def main_page():
-    # TODO: does not work with @login_required decorator for some reason?!
-    user = users.get_current_user()
-    if user is None:
-        return redirect(users.create_login_url(request.path))
-    user_id = user.user_id()
+    user_id = g.user.user_id()
     token = channel.create_channel(user_id)
     q = Cells.all()
     q.filter("user_id =", user_id)
