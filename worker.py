@@ -37,8 +37,14 @@ def login(url, id):
 def go(url='http://localhost:9000', delay=0.5, id='worker'):
     login(url, id)
     while True:
-        do_work(url, id)
-        time.sleep(delay)
+        try:
+            do_work(url, id)
+        except Exception, msg:
+            print "Error: %s"%msg
+            print "Waiting 5 secods"
+            time.sleep(5)
+        else:
+            time.sleep(delay)
 
         
 if __name__ ==  '__main__':
