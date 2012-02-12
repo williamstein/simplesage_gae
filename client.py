@@ -23,8 +23,8 @@ def fake_worker():
     newoutput = request.args.get('newoutput')
     return push_to_client(userid, newoutput)
 
-def push_to_client(user_id, new_output):
-    msg = json.dumps({'cellid': 0,
+def push_to_client(cell_id, user_id, new_output):
+    msg = json.dumps({'cellid': str(cell_id),
                       'userid': user_id,
                       'newoutput': new_output,
                       'status': 'more'})
