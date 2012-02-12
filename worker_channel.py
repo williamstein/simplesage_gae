@@ -6,7 +6,8 @@ from Queue import Empty
 
 from sage.all import preparse
 
-DEBUG = True
+DEBUG_LIST = [None,"local","cmd"]
+DEBUG = DEBUG_LIST[1]
 
 class SageCmdTest(object):
     def __init__(self):
@@ -22,11 +23,30 @@ class SageCmdTest(object):
         with open(self.message_file,'w') as F:
             F.write("")
 
+class SageLocalTest(object):
+    def __init__(self):
+        if len(sys.argv) > 1:
+            self.id = sys.argv[1]
+        else:
+            self.id = "new-worker"
+        data = urllib.urlencode({'id':self.id})
+        urllib2.urlopen('http://localhost:9000/worker/login'%url, data=data)
+    class logger(object):
+        def warn(self, s):
+            print s
+    def long_poll_messages(self):
+        a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
+        while a:
+            yield a
+            a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
+        
 class SageMonitor(object):
     def __init__(self, worker):
         self.worker = worker
-        if DEBUG:
+        if DEBUG == "cmd":
             self.chan = SageCmdTest()
+        elif DEBUG == "local":
+            self.chan = SageLocalTest()
         else:
             self.chan = gae_channel.Client(worker.token)
             self.chan.logger.setLevel(logging.DEBUG)
@@ -139,7 +159,7 @@ class SageGAEWorker(object):
         return new_session
 
     def post(self, userid, cellid, out, status):
-        if DEBUG:
+        if DEBUG == "cmd":
             print "POSTING: %s, %s, %s, %s"%(userid, cellid, out, status)
         else:
             url = self.base_url + "worker/update"
