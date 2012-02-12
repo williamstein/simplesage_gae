@@ -13,3 +13,6 @@ handlers:
 libraries:
 - name: jinja2
   version: "2.6"
+
+inbound_services:
+- channel_presence
