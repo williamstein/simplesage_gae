@@ -99,32 +99,36 @@ def db_sessions():
     all_sessions = Sessions.all()
     return render_template('db_sessions.html', **locals()) 
 
-@app.route("/work")
+@app.route("/workers/work")
 def work():
     q = Cells.all()
     q.filter('status !=', 'done')
     w = [{'cell_id':a.cell_id, 'user_id':a.user_id, 'input':a.input} for a in q]
     return json.dumps(w)
 
-@app.route("/submit_work")
+@app.route("/workers/submit")
 def submit_work():
     user = users.get_current_user()
     if user is not None:
         user_id = user.user_id()
     return render_template('submit_work.html', **locals())
 
-@app.route('/receive_work', methods=['POST'])
-def receive_work():
+@app.route('/workers/update', methods=['POST'])
+def workers_update():
     output = cgi.escape(request.form['output'])
     cell_id = int(cgi.escape(request.form['cell_id']))
     user_id = cgi.escape(request.form['user_id'])
+    status = cgi.escape(request.form['status'])
 
     q = Cells.all()
     q.filter('cell_id =', cell_id)
     q.filter('user_id =', user_id)
     for a in q:
-        a.output = output
-        a.status = 'done'
+        if a.output is None:
+            a.output = output
+        else:
+            a.output += output
+        a.status = status
         a.put()
 
     return 'success'

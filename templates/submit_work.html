@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
-<form action="/receive_work" method="post">
+<form action="/workers/update" method="post">
     <div>user_id:<br><textarea name="user_id" rows="1" cols="10">{{ user_id }}</textarea></div>
     <div>cell_id:<br><textarea name="cell_id" rows="1" cols="10"></textarea></div>
     <div>output:<br><textarea name="output" rows="6" cols="70"></textarea></div>
+    <div>status:<br><textarea name="status" rows="6" cols="70">done</textarea></div> (or 'working')
     <div><input type="submit" value="Submit Work"></div>
 </form>
 {% endblock %}

@@ -1,1 +1,7 @@
-  
+indexes:
+
+- kind: Cells
+  properties:
+  - name: user_id
+  - name: cell_id
+    direction: desc
