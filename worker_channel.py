@@ -37,6 +37,7 @@ class SageLocalTest(object):
     def long_poll_messages(self):
         a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
         while a:
+            print "received %s"%a
             yield a
             a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
         
@@ -61,6 +62,7 @@ class SageMonitor(object):
         while True:
             if self.checking:
                 for userid, t in self.worker.checkup_times.items():
+                    print t, time.time()
                     curtime = time.time()
                     if curtime >= t:
                         self.worker.sessions[userid].query_status()
@@ -98,7 +100,7 @@ class SageMonitor(object):
                 self.wait()
 
     def wait(self):
-        min_wait = 60
+        min_wait = .1
         curtime = time.time()
         for t in self.worker.checkup_times.itervalues():
             diff = t - curtime
@@ -112,9 +114,14 @@ class SageMonitor(object):
             time.sleep(min_wait)
 
 class SageGAEWorker(object):
-    def __init__(self, base_url = "http://simplesage_roed.appspot.com/", worker_subdir = "worker/", \
+    def __init__(self, worker_subdir = "worker/", \
                        delay = 0.02, checkup_interval = 0.01):
-        self.base_url = base_url
+        if DEBUG == 'cmd':
+            self.base_url = None
+        elif DEBUG == 'local':
+            self.base_url = "http://localhost:9000/"
+        else:
+            self.base_url = "http://simplesage389.appspot.com/"
         self.worker_subdir = worker_subdir
         self.delay = delay
         self.checkup_interval = checkup_interval
@@ -143,7 +150,12 @@ class SageGAEWorker(object):
                 assert False
 
     def exec_code(self, userid, cellid, code):
-        session = self.sessions.get(userid, self.fork_new_session(userid))
+        if DEBUG:
+            print "userid = %s"%userid
+        if self.sessions.has_key(userid):
+            session = self.sessions[userid]
+        else:
+            session = self.fork_new_session(userid)
         code = preparse(code)
         session.execute(cellid, code)
 
@@ -153,11 +165,11 @@ class SageGAEWorker(object):
         return new_session
 
     def post(self, userid, cellid, out, status):
-        if DEBUG == "cmd":
+        if DEBUG:
             print "POSTING: %s, %s, %s, %s"%(userid, cellid, out, status)
-        else:
-            url = self.base_url + "worker/update"
-            data = urllib.urlencode({'userid':userid, 'cellid':cellid, 'output':out, 'status':status})
+        if DEBUG != "cmd":
+            url = self.base_url + "workers/update"
+            data = urllib.urlencode({'user_id':userid, 'cell_id':cellid, 'output':out, 'status':status})
             urllib2.urlopen(url, data=data)
         
 class SageSession(object):
@@ -166,6 +178,8 @@ class SageSession(object):
         self.userid = userid
         from sagenb.interfaces.expect import WorksheetProcess_ExpectImplementation
         self.expect = WorksheetProcess_ExpectImplementation()
+        if DEBUG:
+            print "Starting Sage"
         self.expect.execute("from sage.all import *\n")
         self.exec_queue = []
         self.checkup_interval = checkup_interval
@@ -174,13 +188,21 @@ class SageSession(object):
         self.output_len = 0
 
     def set_starting_intervals(self):
+        if DEBUG:
+            print "setting intervals"
+        self.running = True
         self.post_interval = self.checkup_interval
         self.worker.checkup_times[self.userid] = self.next_post = time.time() + self.checkup_interval
 
     def clear_intervals(self):
+        if DEBUG:
+            print "clearing intervals"
         del self.worker.checkup_times[self.userid]
+        self.running = False
 
     def execute(self, cellid, code):
+        if DEBUG:
+            print "executing %s"%code
         self.exec_queue.append((cellid, code))
         self.query_status() # starts execution if there's nothing in the exec_queue
 
@@ -194,25 +216,25 @@ class SageSession(object):
         status = self.expect.output_status()
         new_out = status.output[self.output_len:].strip()
         cur_cellid = self.cur_cellid
+        running = self.running
+        print "running %s"%self.running
         if status.done:
             if len(self.exec_queue) > 0:
                 self._execute()
             else:
                 self.clear_intervals()
-            if cur_cellid is not None: # cur_cellid is None for the initial import
+            if running and cur_cellid is not None: # cur_cellid is None for the initial import
+                if DEBUG:
+                    print "status %s"%status.output
                 self.worker.post(self.userid, cur_cellid, new_out, 'done')
+            elif DEBUG:
+                print "Sage Import complete"
         elif new_out and time.time() > self.next_post:
             self.output_len = len(status.output)
             self.worker.post(self.userid, cur_cellid, new_out, 'working')
             if self.post_interval < self.checkup_interval * 32:
                 self.post_interval *= 2
-            self.next_post = time.time() + self.post_interval
-
-    def new_output(self, status):
-        new_out = status.output[self.output_len:]
-        self.output_len = len(status.output)
-        return new_out
-            
+            self.next_post = time.time() + self.post_interval            
 
 if __name__ ==  '__main__':
     SageGAEWorker()
