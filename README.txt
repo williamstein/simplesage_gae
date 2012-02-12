@@ -1,21 +1,67 @@
-PAGES
+WHAT the app will look like.
 
-MainPage
+ 1. Visit the page and authenticate using openid.
 
-   A page that has a form with a submit button. 
-   You type in a block of code and it gets added to a database.
+ 2. You see two CodeMirror2 boxes with something like this in them:
 
-output:
+    Status: Running sage process started 19 minutes ago.
 
-   Page that displays all calculations that have been completed.
+    [                                   ]
+    [                                   ]
+    [ sage: a = 5                       ]          (read only box, with scroll bars)
+    [ sage: b = 7                       ]
+    [ sage: factor(a^2 + b^3)           ]	   
+    [ 2^4 * 23                          ]
 
-work:
 
-   Page that displays work that needs to be done.
+    [ for i in range(3):                ]          (you type this)
+    [    print a*(b+i)                  ]          (write-able box) 
+    evaluate
+ 
 
-submit:
-   
-   Page at which one can submit results of computations. 
+ 3. Type 1 or more lines of code into the second box and click
+    evaluate (or press shift-enter).
+ 
+ 4. In a fraction of a second the above two boxes change to look like this:
 
+    Status: Running sage process started 20 minutes ago.
+
+    [                                   ]
+    [ sage: a = 5                       ]          (read only box)
+    [ sage: b = 7                       ]
+    [ sage: factor(a^2 + b^3)           ]	   
+    [ 2^4 * 23                          ]
+    [ sage: for i in range(3):          ]
+    [ ...       print a*(b*i)           ]
+    [*                                  ]
+
+    [                                   ]
+    [                                   ]          (write-able box) 
+    evaluate
+
+ 5. In a fraction of a second more they look like this:
+
+    Status: Running sage process started 20 minutes ago.
+
+    [                                   ]
+    [ sage: a = 5                       ]          (read only box, with scroll bars)
+    [ sage: b = 7                       ]
+    [ sage: factor(a^2 + b^3)           ]	   
+    [ 2^4 * 23                          ]
+    [ sage: for i in range(3):          ]
+    [ ...       print a*(b*i)           ]
+    [ 35                                ]
+    [ 40                                ]
+    [ 45                                ]
+
+    [                                   ]
+    [                                   ]          (write-able box) 
+    evaluate
+
+
+Behind the scenes there is <= 1 persistent session for each user. 
+
+
+---------------------------------
 
 
