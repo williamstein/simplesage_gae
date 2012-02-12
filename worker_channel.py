@@ -4,9 +4,10 @@ import gae_channel
 import multiprocessing
 from Queue import Empty
 
-#import sage.all_cmdline
+from sage.all import preparse
 
-DEBUG = True
+DEBUG_LIST = [None,"local","cmd"]
+DEBUG = DEBUG_LIST[1]
 
 class SageCmdTest(object):
     def __init__(self):
@@ -19,12 +20,33 @@ class SageCmdTest(object):
             for a in F.read().split("$$"):
                 if len(a) > 0:
                     yield a
+        with open(self.message_file,'w') as F:
+            F.write("")
 
+class SageLocalTest(object):
+    def __init__(self):
+        if len(sys.argv) > 1:
+            self.id = sys.argv[1]
+        else:
+            self.id = "new-worker"
+        data = urllib.urlencode({'id':self.id})
+        urllib2.urlopen('http://localhost:9000/worker/login'%url, data=data)
+    class logger(object):
+        def warn(self, s):
+            print s
+    def long_poll_messages(self):
+        a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
+        while a:
+            yield a
+            a = urllib2.urlopen('http://localhost:9000/fake_channel/%s'%(self.id)).read()
+        
 class SageMonitor(object):
     def __init__(self, worker):
         self.worker = worker
-        if DEBUG:
+        if DEBUG == "cmd":
             self.chan = SageCmdTest()
+        elif DEBUG == "local":
+            self.chan = SageLocalTest()
         else:
             self.chan = gae_channel.Client(worker.token)
             self.chan.logger.setLevel(logging.DEBUG)
@@ -36,47 +58,44 @@ class SageMonitor(object):
         self.lpm = self.chan.long_poll_messages()
 
     def __iter__(self):
-        return self
-
-    def next(self):
-        if self.checking:
-            for userid, t in self.worker.checkup_times.iteritems():
-                curtime = time.time()
-                if curtime >= t:
-                    self.worker.check(userid)
-            self.checking = False
-        try:
+        while True:
+            if self.checking:
+                for userid, t in self.worker.checkup_times.items():
+                    curtime = time.time()
+                    if curtime >= t:
+                        self.worker.sessions[userid].query_status()
+                self.checking = False
             try:
-                msg = self.lpm.next()
-                self._backoff = 1
-                self._need_reconnect = False
-            except StopIteration:
-                self.lpm = self.chan.long_poll_messages()
                 try:
                     msg = self.lpm.next()
                     self._backoff = 1
                     self._need_reconnect = False
+                    yield msg
                 except StopIteration:
-                    # No messages right now.
-                    self.wait()
-                    self.checking = True
-                    return self.next()
-        except gae_channel._TalkMessageCorrupted, e:
-            self.chan.logger.warn('TalkMessageCorrupted: %s' % str(e))
-            self.chan.logger.warn('reconnecting')
-            return self.next()
-        except socket.error, e:
-            # timeout (connection lost)
-            self.logger.warn('Long poll timed out: %s' % e)
-            self.logger.warn('reconnecting in %d seconds' % self._backoff )
-            self._need_reconnect = True
-            self._reconnect_time = time.time() + self._backoff
-            if self._backoff < 32:
-                self._backoff *= 2
-            self.checking = True
-            self.wait()
-            return self.next()
-        return msg
+                    self.lpm = self.chan.long_poll_messages()
+                    try:
+                        msg = self.lpm.next()
+                        self._backoff = 1
+                        self._need_reconnect = False
+                        yield msg
+                    except StopIteration:
+                        # No messages right now.
+                        self.wait()
+                        self.checking = True
+            except gae_channel._TalkMessageCorrupted, e:
+                self.chan.logger.warn('TalkMessageCorrupted: %s' % str(e))
+                self.chan.logger.warn('reconnecting')
+                yield self.next()
+            except socket.error, e:
+                # timeout (connection lost)
+                self.logger.warn('Long poll timed out: %s' % e)
+                self.logger.warn('reconnecting in %d seconds' % self._backoff )
+                self._need_reconnect = True
+                self._reconnect_time = time.time() + self._backoff
+                if self._backoff < 32:
+                    self._backoff *= 2
+                self.checking = True
+                self.wait()
 
     def wait(self):
         min_wait = 60
@@ -94,11 +113,11 @@ class SageMonitor(object):
 
 class SageGAEWorker(object):
     def __init__(self, base_url = "http://simplesage_roed.appspot.com/", worker_subdir = "worker/", \
-                       delay = 0.02, base_checkup_interval = 0.01):
+                       delay = 0.02, checkup_interval = 0.01):
         self.base_url = base_url
         self.worker_subdir = worker_subdir
         self.delay = delay
-        self.base_checkup_interval = base_checkup_interval
+        self.checkup_interval = checkup_interval
         self.sessions = {}
         self.checkup_times = {}
         if DEBUG:
@@ -118,38 +137,8 @@ class SageGAEWorker(object):
             print type(msg), msg
             msg = json.loads(msg)
             cmd, userid, data = msg['cmd'], msg['userid'], msg['data']
-            #sys.stderr.write("Handling %s command"%(cmd))
-            #sys.stderr.flush()
             print "Handling %s command"%(cmd)
             self.handle_command(cmd, userid, data)
-
-    def check(self, userid):
-        session = self.sessions[userid]
-        if session.process.is_alive():
-            results = []
-            base_tell = session.last_tell
-            while True:
-                try:
-                    results.append(session.done.get_nowait() + ("done",))
-                    session.active_commands -= 1
-                    session.checkup_interval = session.base_checkup_interval
-                except Empty:
-                    break
-            newest_tell = results[-1][1] if len(results) > 0 else base_tell
-            cur_tell = session.output.tell()
-            if session.output.tell() > newest_tell:
-                assert session.active_commands > 0
-                results.append((cellid, cur_tell, "working"))
-                if session.checkup_interval < session.base_checkup_interval * 128:
-                    session.checkup_interval *= 2
-            if session.active_commands > 0:
-                self.worker.checkup_times[userid] = time.time() + session.checkup_interval
-            session.output.seek(base_tell)
-            for cellid, new_tell, status in results:
-                out = session.output.read(new_tell - base_tell)
-                self.post(userid, cellid, out, status)
-                base_tell = new_tell
-            session.last_tell = base_tell
 
     def handle_command(self, cmd, userid, data):
         if cmd == 'exec':
@@ -159,68 +148,77 @@ class SageGAEWorker(object):
             self.kill_session(userid)
 
     def exec_code(self, userid, data):
-        print data
         session = self.sessions.get(userid, self.fork_new_session(userid))
-        session.input.put(data)
-        session.active_commands += 1
-        self.checkup_times[userid] = time.time() + self.base_checkup_interval
+        cellid, code = data['cellid'], data['code']
+        code = preparse(code)
+        session.execute(cellid, code)
 
     def fork_new_session(self, userid):
-        print "FORKING"
-        sys.stdout.flush()
-        new_session = SageSession(self.delay, self.base_checkup_interval)
+        new_session = SageSession(self, userid, self.delay, self.checkup_interval)
         self.sessions[userid] = new_session
-        new_session.process.start()
         return new_session
 
     def post(self, userid, cellid, out, status):
-        print "POSTING: %s, %s, %s, %s"%(userid, cellid, out, status)
-        #url = self.base_url + "worker/update"
-        #data = urllib.urlencode({'userid':userid, 'cellid':cellid, 'output':out, 'status':status})
-        #urllib2.urlopen(url, data=data)
-
-class SageSession(object):
-    def __init__(self, delay, base_checkup_interval = 0.01):
-        self.output = os.tmpfile()
-        print "opening input"
-        sys.stdout.flush()
-        self.input = multiprocessing.Queue()
-        print "opening done"
-        sys.stdout.flush()
-        self.done = multiprocessing.Queue()
-        self.process = SageProcess(self.input, self.done, self.output, delay)
-        self.last_tell = 0
-        self.active_commands = 0
-        self.base_checkup_interval = base_checkup_interval
-        self.checkup_interval = base_checkup_interval
-
-class SageProcess(multiprocessing.Process):
-    def __init__(self, input_queue, done_queue, output_file, delay):
-        multiprocessing.Process.__init__(self)
-        self.input_queue = input_queue
-        self.done_queue = done_queue
-        self.output_file = output_file
-        self.delay = delay
-        self.globs = {}
-        #for ky, val in sage.all.__dict__.iteritems():
-        #    self.globs[ky] = val
-        os.dup2(output_file.fileno(), sys.stdout.fileno())
-
-    def run(self):
-        while True:
-            try:
-                data = self.input_queue.get_nowait()
-                cellid, code = data['cellid'], data['code']
-            except Empty:
-                time.sleep(self.delay)
-                continue
-            sys.stderr.write("hello " + code)
-            sys.stderr.flush()
-            exec code in {}
-            print "bbye"
-            self.done_queue.put((cellid,self.output_file.tell()))
+        if DEBUG == "cmd":
+            print "POSTING: %s, %s, %s, %s"%(userid, cellid, out, status)
+        else:
+            url = self.base_url + "worker/update"
+            data = urllib.urlencode({'userid':userid, 'cellid':cellid, 'output':out, 'status':status})
+            urllib2.urlopen(url, data=data)
         
+class SageSession(object):
+    def __init__(self, worker, userid, delay, checkup_interval = 0.01):
+        self.worker = worker
+        self.userid = userid
+        from sagenb.interfaces.expect import WorksheetProcess_ExpectImplementation
+        self.expect = WorksheetProcess_ExpectImplementation()
+        self.expect.execute("from sage.all import *\n")
+        self.exec_queue = []
+        self.checkup_interval = checkup_interval
+        self.set_starting_intervals()
+        self.cur_cellid = None
+        self.output_len = 0
+
+    def set_starting_intervals(self):
+        self.post_interval = self.checkup_interval
+        self.worker.checkup_times[self.userid] = self.next_post = time.time() + self.checkup_interval
+
+    def clear_intervals(self):
+        del self.worker.checkup_times[self.userid]
+
+    def execute(self, cellid, code):
+        self.exec_queue.append((cellid, code))
+        self.query_status() # starts execution if there's nothing in the exec_queue
+
+    def _execute(self):
+        self.cur_cellid, code = self.exec_queue.pop(0)
+        self.expect.execute(code)
+        self.output_len = 0
+        self.set_starting_intervals()
+
+    def query_status(self):
+        status = self.expect.output_status()
+        new_out = status.output[self.output_len:].strip()
+        cur_cellid = self.cur_cellid
+        if status.done:
+            if len(self.exec_queue) > 0:
+                self._execute()
+            else:
+                self.clear_intervals()
+            if cur_cellid is not None: # cur_cellid is None for the initial import
+                self.worker.post(self.userid, cur_cellid, new_out, 'done')
+        elif new_out and time.time() > self.next_post:
+            self.output_len = len(status.output)
+            self.worker.post(self.userid, cur_cellid, new_out, 'working')
+            if self.post_interval < self.checkup_interval * 32:
+                self.post_interval *= 2
+            self.next_post = time.time() + self.post_interval
+
+    def new_output(self, status):
+        new_out = status.output[self.output_len:]
+        self.output_len = len(status.output)
+        return new_out
+            
+
 if __name__ ==  '__main__':
     SageGAEWorker()
-
-# preparse
