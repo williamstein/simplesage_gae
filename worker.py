@@ -1,12 +1,13 @@
 import json, time, urllib, urllib2
 
 def get_work(url):
-    u = urllib2.urlopen('%s/work'%url)
+    u = urllib2.urlopen('%s/workers/work'%url)
     return json.loads(u.read())
 
 def submit_work(url, cell_id, user_id, output):
-    data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id, 'output':output})
-    urllib2.urlopen('%s/receive_work'%url, data=data)
+    data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id, 'output':output,
+                             'status':'done'})
+    urllib2.urlopen('%s/workers/update'%url, data=data)
 
 def do_work(url='http://localhost:9000'):
     todo = get_work(url)

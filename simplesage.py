@@ -47,10 +47,6 @@ class Sessions(db.Model):
     user_id = db.StringProperty()
     status = db.StringProperty()
 
-#TODO: what's this key -- makes no sense to me?
-key = db.Key.from_path('work', 'request') 
-
-
 @login_required   
 def next_cell_id():
     q = Cells.all()
