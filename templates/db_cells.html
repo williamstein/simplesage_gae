@@ -1,7 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
 <table border=1>
 <tr><th>user_id</th><th>cell_id</th><th>status</th><th>input</th><th>output</th></tr>
 {% for a in all_cells %}
-<tr bgcolor="{% if a.output is defined %}yellow{% else %}#eee{% endif %}">
+<tr bgcolor="{% if a.output is defined %}#eee{% else %}#bbb{% endif %}">
     <td>{{ a.user_id }} </td>
     <td> {{ a.cell_id }} </td>
     <td>{{ a.status }}</td>
@@ -10,3 +14,5 @@
 </tr>
 {% endfor %}
 </table>
+
+{% endblock %}
