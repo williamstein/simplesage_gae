@@ -10,34 +10,51 @@ def get_work(url, id):
         return []
     return json.loads(u)
 
-def submit_work(url, cell_id, user_id, output):
+def submit_work(url, cell_id, user_id, output, status):
     data = urllib.urlencode({'cell_id':cell_id, 'user_id':user_id,
                              'output':output,
-                             'status':'done'})
+                             'status':status})
     urllib2.urlopen('%s/workers/update'%url, data=data)
 
-from sagenb.interfaces.reference import execute_code
-G = {}
-execute_code('from sage.all import *', G)
-
-def evaluate(input):
-    from sage.all import preparse
-    try:
-        return execute_code(preparse(input), G)[0]
-    except Exception, msg:
-        return "Error: '%s'"%msg
-
+if 0:
+    from sagenb.interfaces.reference import execute_code
+    G = {}
+    execute_code('from sage.all import *', G)
+    def evaluate(input):
+        from sage.all import preparse
+        try:
+            return execute_code(preparse(input), G)[0]
+        except Exception, msg:
+            return "Error: '%s'"%msg
+else:
+    from sagenb.interfaces.expect import WorksheetProcess_ExpectImplementation
+    E = WorksheetProcess_ExpectImplementation()
+    def evaluate(input):
+        if not E.is_started():
+            E.execute('from sage.all import *')            
+        from sage.all import preparse
+        E.execute(preparse(input))
+        n = 0
+        while True:
+            status = E.output_status()
+            if len(status.output) > n:
+                yield status.output[n:-1].lstrip()
+            n = len(status.output)
+            if status.done:
+                return
+            time.sleep(0.2)
 
 def do_work(url, id):
     w = get_work(url, id)
     if not w:
         return 
     print "Doing task: %s"%w
-    output = evaluate(w['input'])
-    user_id = w['user_id']
-    cell_id = w['cell_id']
-    print user_id, cell_id, output
-    submit_work(url, cell_id, user_id, output)
+    for output in evaluate(w['input']):
+        user_id = w['user_id']
+        cell_id = w['cell_id']
+        print user_id, cell_id, output
+        submit_work(url, cell_id, user_id, output, status='working')
+    submit_work(url, cell_id, user_id, '', status='done')
 
 def login(url, id):
     data = urllib.urlencode({'id':id})
