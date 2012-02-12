@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}
+Enter a Sage expression:
+  <form action="/input" method="post">
+    <div><input type="text" name="input" size="90"></div>
+  </form>
+{% endblock %}

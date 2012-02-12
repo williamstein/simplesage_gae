@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<form action="/receive_work" method="post">
+    <div>id:<br><textarea name="id" rows="1" cols="10"></textarea></div>
+    <div>output:<br><textarea name="output" rows="6" cols="70"></textarea></div>
+    <div><input type="submit" value="Submit Work"></div>
+</form>
+{% endblock %}
