@@ -124,7 +124,7 @@ def drop_workers():
 @app.route('/db/sessions')
 def db_sessions():
     all_sessions = Sessions.all()
-    return render_template('db_sessions.html', **locals()) 
+    return render_template('db_sessions.html', **locals())
 
 @app.route('/db/sessions/drop')
 def drop_sessions():

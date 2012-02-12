@@ -5,6 +5,9 @@ import json
 
 from google.appengine.api import channel
 
+class NoAvailableWorkersError(RuntimeError):
+    pass
+
 @app.route('/input_new', methods=['POST'])
 @login_required
 def input_new():
@@ -15,8 +18,12 @@ def input_new():
                  cell_id = next_cell_id(),
                  input   = input)
     cell.put()
-    send_work(user_id, cell.cell_id, cell.input)
-    return jsonify({'status': 'ok'})
+    try:
+        send_work(user_id, cell.cell_id, cell.input)
+        return jsonify({'status': 'ok'})
+    except NoAvailableWorkersError:
+        return jsonify({'status': 'no workers available'})
+ 
 
 @app.route('/fake_worker', methods=['GET'])
 def fake_worker():
@@ -50,9 +57,7 @@ def get_worker(user_id):
         
         return g.worker_id
 
-    # No worker available
-    raise RuntimeError, "no workers available"
-
+    raise NoAvailableWorkersError
 
 import fake_channel
 

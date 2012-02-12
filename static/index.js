@@ -30,6 +30,7 @@ Controller.prototype.ack = function(message) {
   if (message.status == 'ok') {
     this.extend_output(this.input);
   } else {
+    alert(message.status);
     this.undo();
   }
 };
