@@ -1,7 +1,9 @@
-from flask import Flask, request
+from flask import Flask, request, redirect, url_for
 app = Flask(__name__)
 
 from google.appengine.ext import db
+from google.appengine.api import users
+
 from flask import render_template
 
 import cgi
@@ -29,17 +31,21 @@ def next_id():
 # handling URL's
 ##############################
 
-
 @app.route("/")
 def main_page():
+    
     return render_template('main.html')
 
 @app.route('/input', methods=['POST'])
 def input_page():
     id = next_id()
     input = cgi.escape(request.form['input'])
-    all_work = get_all_work() 
 
+    # Get the current user, or redirect them to a login page:
+    user = users.get_current_user()
+    if user is None: return redirect(users.create_login_url(request.path))
+
+    all_work = get_all_work() 
     wr = WorkRequest(parent=key, id=id, input=input)
     wr.put()
 
