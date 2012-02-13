@@ -161,6 +161,11 @@ onload = function() {
   controller.output_codemirror = output;
 
   establishChannel(token);
+  
+  $('#wrap-btn').click(function() {
+    var wrapping = output.getOption('lineWrapping');
+    output.setOption('lineWrapping', !wrapping);
+  });
 }
 
 document.addEventListener('onload', onload);
