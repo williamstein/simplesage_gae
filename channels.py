@@ -1,3 +1,8 @@
+"""
+    :copyright: (c) 2012 by William Stein
+    :license: BSD, see LICENSE for more details.
+"""
+
 import logging
 from flask import request
 from simplesage import app

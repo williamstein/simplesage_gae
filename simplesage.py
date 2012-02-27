@@ -1,3 +1,8 @@
+"""
+    :copyright: (c) 2012 by William Stein
+    :license: BSD, see LICENSE for more details.
+"""
+
 from flask import Flask, request, redirect, url_for, g
 app = Flask(__name__)
 

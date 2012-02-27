@@ -1,3 +1,8 @@
+"""
+    :copyright: (c) 2012 by William Stein
+    :license: BSD, see LICENSE for more details.
+"""
+
 import json, time, urllib, urllib2
 
 ## def get_work(url):
@@ -16,7 +21,7 @@ def submit_work(url, cell_id, user_id, output, status):
                              'status':status})
     urllib2.urlopen('%s/workers/update'%url, data=data)
 
-if 1:
+if 0:
     from sagenb.interfaces.reference import execute_code
     G = {}
     execute_code('from sage.all import *', G)

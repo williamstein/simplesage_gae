@@ -1,3 +1,8 @@
+"""
+    :copyright: (c) 2012 by William Stein
+    :license: BSD, see LICENSE for more details.
+"""
+
 #!/usr/bin/env python
 import json, time, urllib, urllib2, sys, logging, socket, os
 import gae_channel
